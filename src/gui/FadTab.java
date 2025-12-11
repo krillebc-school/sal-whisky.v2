@@ -83,6 +83,7 @@ public class FadTab implements Updatable {
         hyldeListView.getItems().setAll(ledigeHylder);
         pane.add(hyldeListView, 4, 4, 2, 1);
 
+        pane.add(new Label("Fadets plads på lageret"), 6,3,1,1);
         pane.add(FadPåLagerTextArea, 6,4,1,1);
         FadPåLagerTextArea.setPrefWidth(250);
         FadPåLagerTextArea.setEditable(false);
