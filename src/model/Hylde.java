@@ -1,0 +1,48 @@
+package model;
+
+import java.io.Serializable;
+import java.sql.SQLOutput;
+import java.util.ArrayList;
+
+public class Hylde implements Serializable {
+    private int nr;
+    private Række række;
+    private boolean erOptaget;
+    private Fad fad;
+
+
+    public Hylde(int nr, Række række) {
+        this.nr = nr;
+        this.række = række;
+        this.erOptaget = false;
+    }
+
+    public Fad getFad() {
+        return fad;
+    }
+
+    public void setFad(Fad fad) {
+        this.fad = fad;
+    }
+
+    public int getNr() {
+        return nr;
+    }
+
+    public Række getRække() {
+        return række;
+    }
+
+    public boolean isErOptaget() {
+        return erOptaget;
+    }
+
+    public void setErOptaget(boolean erOptaget) {
+        this.erOptaget = erOptaget;
+    }
+
+    @Override
+    public String toString() {
+        return "Hylde nr: " + nr + " " + "Række nr: " + række.getNr();
+    }
+}

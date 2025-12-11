@@ -1,0 +1,282 @@
+package gui;
+
+import Controller.Controller;
+import javafx.geometry.Insets;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
+import model.*;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class FadTab implements Updatable {
+
+    private TextField IDTxtF = new TextField();
+    private TextField strTxtF = new TextField();
+    private ComboBox<FadType> fadTypeComboBox = new ComboBox<>();
+    private ListView<Leverandør> leverandørListView = new ListView<>();
+    private Button opretFadBtn = new Button("Opret Fad");
+    private ListView<Fad> fadListView = new ListView<>();
+    private Button opretLeverandørBtn = new Button("Opret leverandør");
+    private TextField levNavn = new TextField();
+    private TextField levAdresse = new TextField();
+    private TextField levTLF = new TextField();
+    private ListView<Hylde> hyldeListView = new ListView<>();
+    private Button addFadTilHyldeBtn = new Button("Placer fad på hylde");
+    private TextArea FadPåLagerTextArea= new TextArea();
+
+    private TextField addVandTilfadTxf = new TextField();
+    private Button addVandTilFadBtn = new Button("Tilføj");
+
+    private Button angelShareBtn = new Button("Udregn");
+    private TextField angelShareNyMængdeTfx = new TextField();
+    private TextField angelShareAlkoholTfx = new TextField();
+    private Stage popup;
+
+    public GridPane getContent() {
+        GridPane pane = new GridPane();
+
+        // set padding of the pane
+        pane.setPadding(new Insets(20));
+        // set horizontal gap between components
+        pane.setHgap(10);
+        // set vertical gap between components
+        pane.setVgap(10);
+
+
+        pane.add(new Label("ID"), 0, 0);
+        pane.add(IDTxtF, 1, 0);
+
+        pane.add(new Label("str:"), 0, 1);
+        pane.add(strTxtF, 1, 1);
+
+        pane.add(new Label("Fad type:"), 0, 2);
+        fadTypeComboBox.getItems().setAll(FadType.values());
+        fadTypeComboBox.setValue(FadType.Sherry);
+        pane.add(fadTypeComboBox, 1, 2);
+
+        pane.add(new Label("Vælg leverandør:"), 0, 3, 2, 1);
+        leverandørListView.getItems().setAll(Controller.getLeverandører());
+        pane.add(leverandørListView, 0, 4, 2, 1);
+
+        pane.add(new Label("Nuværende fade:"), 2, 3, 2, 1);
+        fadListView.getItems().setAll(Controller.getFade());
+        pane.add(fadListView, 2, 4, 2, 1);
+
+        pane.add(new Label("Ledige pladser:"), 4, 3, 2, 1);
+        List<Hylde> ledigeHylder = new ArrayList<>();
+        for (Lager lager : Controller.getLagere()) {
+            for (Reol reol : lager.getReoler()) {
+                for (Række række : reol.getRækker()) {
+                    for (Hylde hylde : række.getHylder()) {
+                        if (!hylde.isErOptaget()) {
+                            ledigeHylder.add(hylde);
+                        }
+                    }
+                }
+            }
+        }
+
+        hyldeListView.getItems().setAll(ledigeHylder);
+        pane.add(hyldeListView, 4, 4, 2, 1);
+
+        pane.add(FadPåLagerTextArea, 6,4,1,1);
+        FadPåLagerTextArea.setPrefWidth(250);
+        FadPåLagerTextArea.setEditable(false);
+        fadListView.getSelectionModel().selectedItemProperty().addListener((obs,oldItem,newItem) ->{
+            if (newItem != null){
+                FadPåLagerTextArea.clear();
+                FadPåLagerTextArea.appendText(Controller.findFadPåLager(fadListView.getSelectionModel().getSelectedItem().getId()));
+                if (fadListView.getSelectionModel().getSelectedItem().getHylde() == null){
+                    FadPåLagerTextArea.appendText("Dette fad er ikke på lager");
+                }
+            }
+        });
+
+        pane.add(opretFadBtn, 2, 5);
+        opretFadBtn.setOnAction(event -> opretFad());
+
+        pane.add(opretLeverandørBtn, 0, 5);
+        opretLeverandørBtn.setOnAction(event -> opretLeverandørPopUp());
+
+        pane.add(addFadTilHyldeBtn, 4, 5);
+        addFadTilHyldeBtn.setOnAction(event -> placerFadPåHylde());
+
+        pane.add(new Label("Udregn angel share"),2,0);
+        pane.add(angelShareBtn,5,0);
+        pane.add(angelShareNyMængdeTfx,3,0);
+        angelShareNyMængdeTfx.setPromptText("Ny mængde på fad");
+        pane.add(angelShareAlkoholTfx,4,0);
+        angelShareAlkoholTfx.setPromptText("Alkohol %");
+
+        angelShareBtn.setOnAction(event -> udregnAngel());
+
+        pane.add(new Label("Tilføj vand til fad"),2,1);
+        pane.add(addVandTilfadTxf,3,1);
+        addVandTilfadTxf.setPromptText("Liter");
+        pane.add(addVandTilFadBtn,4,1);
+        addVandTilFadBtn.setOnAction(event -> tilføjVand());
+
+        return pane;
+    }
+
+    private void udregnAngel(){
+
+
+        if (fadListView.getSelectionModel().getSelectedItem() == null) {
+            new Alert(Alert.AlertType.ERROR, "Vælg et fad først.").showAndWait();
+
+        } else if (angelShareNyMængdeTfx.getText().isBlank() || angelShareAlkoholTfx.getText().isBlank()){
+            new Alert(Alert.AlertType.ERROR, "Venligst tjek om både ny mængde og alkohol procent er udfyldt.").showAndWait();
+
+
+        } else if (Double.parseDouble(angelShareAlkoholTfx.getText()) < 40){
+            new Alert(Alert.AlertType.ERROR, "alkohol procenten er for lavt.").showAndWait();
+            angelShareNyMængdeTfx.clear();
+            angelShareAlkoholTfx.clear();
+
+        } else if (Double.parseDouble(angelShareNyMængdeTfx.getText()) > fadListView.getSelectionModel().getSelectedItem().getLiterIFad()){
+            new Alert(Alert.AlertType.ERROR, "Mængden du har skrevet, er mindre end hvad der er i fadet.").showAndWait();
+            angelShareNyMængdeTfx.clear();
+            angelShareAlkoholTfx.clear();
+
+        }else if (Double.parseDouble(angelShareAlkoholTfx.getText()) > fadListView.getSelectionModel().getSelectedItem().getAlkoholProcent()){
+            new Alert(Alert.AlertType.ERROR, "alkohol procenten du har skrevet, er mere end hvad der er i fadet.").showAndWait();
+            angelShareNyMængdeTfx.clear();
+            angelShareAlkoholTfx.clear();
+
+        } else {
+            new Alert(Alert.AlertType.INFORMATION,"Angel share på fadet ID: " + fadListView.getSelectionModel().getSelectedItem().getId() + " , er: " +
+                    fadListView.getSelectionModel().getSelectedItem().getAngelShare(Double.parseDouble(angelShareNyMængdeTfx.getText()),Double.parseDouble(angelShareAlkoholTfx.getText()))).showAndWait();
+            angelShareNyMængdeTfx.clear();
+            angelShareAlkoholTfx.clear();
+            update();
+
+        }
+    }
+
+    private void tilføjVand(){
+
+        if (fadListView.getSelectionModel().getSelectedItem() == null) {
+            new Alert(Alert.AlertType.ERROR, "Vælg et fad først.").showAndWait();
+            addVandTilfadTxf.clear();
+
+        } else if (fadListView.getSelectionModel().getSelectedItem().getLiterIFad() + Integer.parseInt(addVandTilfadTxf.getText()) >  fadListView.getSelectionModel().getSelectedItem().getStørrelse()) {
+            new Alert(Alert.AlertType.ERROR, "Der er ikke nok plads på fadet.").showAndWait();
+            addVandTilfadTxf.clear();
+
+        } else {
+            fadListView.getSelectionModel().getSelectedItem().addVandTilFad(Integer.parseInt(addVandTilfadTxf.getText()));
+            addVandTilfadTxf.clear();
+            update();
+
+        }
+
+    }
+
+    private void placerFadPåHylde() {
+
+        Fad fad = fadListView.getSelectionModel().getSelectedItem();
+        Hylde hylde = hyldeListView.getSelectionModel().getSelectedItem();
+        FadPåLagerTextArea.clear();
+
+        if (fad == null) {
+            new Alert(Alert.AlertType.ERROR, "Vælg et fad først.").showAndWait();
+            return;
+        }
+
+        if (hylde == null) {
+            new Alert(Alert.AlertType.ERROR, "Vælg en ledig hylde.").showAndWait();
+            return;
+        }
+
+        if (fad.getHylde() != null){
+            fad.getHylde().setFad(null);
+            fad.getHylde().setErOptaget(false);
+        }
+
+        try {
+            Controller.addFadTilHylde(fad, hylde);
+            update();
+
+        } catch (IllegalArgumentException ex) {
+            new Alert(Alert.AlertType.ERROR, ex.getMessage()).showAndWait();
+        }
+    }
+
+    private void opretFad() {
+
+        if (leverandørListView.getSelectionModel().getSelectedItem() == null) {
+            Alert alert = new Alert(Alert.AlertType.ERROR, "Der blev ikke valgt en leverandør");
+            alert.showAndWait();
+        }
+
+        Controller.createFad(Integer.parseInt(IDTxtF.getText()), Double.parseDouble(strTxtF.getText())
+                , fadTypeComboBox.getValue(), leverandørListView.getSelectionModel().getSelectedItem());
+
+        update();
+    }
+
+    private void opretLeverandørPopUp() {
+        popup = new Stage();
+        popup.setTitle("Opret leverandør");
+
+        Button knap = new Button("Opret leverandør");
+
+        VBox box = new VBox(10);
+        box.setPadding(new Insets(10));
+        box.getChildren().add(new Label("Navn: "));
+        box.getChildren().add(levNavn);
+        box.getChildren().add(new Label("Adresse: "));
+        box.getChildren().add(levAdresse);
+        box.getChildren().add(new Label("TLF: "));
+        box.getChildren().add(levTLF);
+        box.getChildren().add(knap);
+
+        knap.setOnAction(event -> opretLeverandør());
+
+        popup.setScene(new Scene(box, 200, 250));
+        popup.show();
+
+
+    }
+
+    private void opretLeverandør() {
+
+        if (!levNavn.getText().isEmpty() && !levAdresse.getText().isEmpty() && !levTLF.getText().isEmpty()) {
+            Controller.createLeverandør(levNavn.getText(), levAdresse.getText(), levTLF.getText());
+            update();
+
+            levTLF.clear();
+            levAdresse.clear();
+            levNavn.clear();
+
+            popup.close();
+        }
+
+    }
+
+        @Override
+        public void update () {
+            leverandørListView.getItems().setAll(Controller.getLeverandører());
+            fadListView.getItems().setAll(Controller.getFade());
+
+            List<Hylde> ledigeHylder = new ArrayList<>();
+
+            for (Lager lager : Controller.getLagere()) {
+                for (Reol reol : lager.getReoler()) {
+                    for (Række række : reol.getRækker()) {
+                        for (Hylde hylde : række.getHylder()) {
+                            if (!hylde.isErOptaget()) {
+                                ledigeHylder.add(hylde);
+                            }
+                        }
+                    }
+                }
+            }
+            hyldeListView.getItems().setAll(ledigeHylder);
+        }
+    }
